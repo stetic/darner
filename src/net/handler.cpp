@@ -1,8 +1,10 @@
+
 #include "darner/net/handler.h"
 
 #include <cstdio>
 
 #include <boost/array.hpp>
+
 
 using namespace std;
 using namespace boost;
@@ -40,8 +42,7 @@ void handler::read_request(const system::error_code& e, size_t bytes_transferred
 {
    if (e)
       return error("read_request", e);
-
-   async_read_until(socket_, in_, '\n', bind(&handler::parse_request, shared_from_this(), _1, _2));
+   async_read_until(socket_, in_, '\n', bind(&handler::parse_request, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void handler::parse_request(const system::error_code& e, size_t bytes_transferred)
@@ -82,13 +83,13 @@ void handler::write_stats()
    oss << "END\r\n";
    buf_ = oss.str();
 
-   async_write(socket_, buffer(buf_), bind(&handler::read_request, shared_from_this(), _1, _2));
+   async_write(socket_, buffer(buf_), bind(&handler::read_request, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void handler::write_version()
 {
    buf_ = "VERSION " DARNER_VERSION "\r\n";
-   async_write(socket_, buffer(buf_), bind(&handler::read_request, shared_from_this(), _1, _2));
+   async_write(socket_, buffer(buf_), bind(&handler::read_request, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void handler::destroy()
@@ -121,7 +122,7 @@ void handler::set()
 
    async_read(
       socket_, in_, transfer_at_least(required > in_.size() ? required - in_.size() : 0),
-      bind(&handler::set_on_read_chunk, shared_from_this(), _1, _2));
+      bind(&handler::set_on_read_chunk, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void handler::set_on_read_chunk(const system::error_code& e, size_t bytes_transferred)
@@ -166,7 +167,7 @@ void handler::set_on_read_chunk(const system::error_code& e, size_t bytes_transf
    queue::size_type required = remaining > chunk_size_ ? chunk_size_ : remaining + 2;
    async_read(
       socket_, in_, transfer_at_least(required > in_.size() ? required - in_.size() : 0),
-      bind(&handler::set_on_read_chunk, shared_from_this(), _1, _2));
+      bind(&handler::set_on_read_chunk, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 }
 
 void handler::get()
@@ -197,7 +198,7 @@ void handler::get()
    if (!pop_stream_.open(queues_[req_.queue]))
    {
       if (req_.wait_ms) // couldn't read... can we at least wait?
-         return queues_[req_.queue]->wait(req_.wait_ms, bind(&handler::get_on_queue_return, shared_from_this(), _1));
+         return queues_[req_.queue]->wait(req_.wait_ms, bind(&handler::get_on_queue_return, shared_from_this(), boost::placeholders::_1));
       else
          return end();
    }
@@ -228,13 +229,14 @@ void handler::get()
          }
       }
       ++stats_.items_dequeued;
-      array<const_buffer, 3> bufs = {{ buffer(header_buf_), buffer(buf_), buffer("\r\nEND\r\n", 7) }};
-      async_write(socket_, bufs, bind(&handler::read_request, shared_from_this(), _1, _2));
+      boost::array<const_buffer, 3> bufs = {{ buffer(header_buf_), buffer(buf_), buffer("\r\nEND\r\n", 7) }};
+
+      async_write(socket_, bufs, bind(&handler::read_request, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
    }
    else
    {
-      array<const_buffer, 2> bufs = {{ buffer(header_buf_), buffer(buf_) }};
-      async_write(socket_, bufs, bind(&handler::get_on_write_chunk, shared_from_this(), _1, _2));
+      boost::array<const_buffer, 2> bufs = {{ buffer(header_buf_), buffer(buf_) }};
+      async_write(socket_, bufs, bind(&handler::get_on_write_chunk, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
    }
 }
 
@@ -281,6 +283,6 @@ void handler::get_on_write_chunk(const boost::system::error_code& e, size_t byte
          return error("get_on_write_chunk", ex, false);
       }
 
-      async_write(socket_, buffer(buf_), bind(&handler::get_on_write_chunk, shared_from_this(), _1, _2));
+      async_write(socket_, buffer(buf_), bind(&handler::get_on_write_chunk, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
    }
 }

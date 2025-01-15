@@ -1,0 +1,11 @@
+services:
+    darner:
+        container_name: darner
+        build: .
+        image: darner
+        volumes:
+            - .:/app
+        command: > 
+          bash -c "sleep 36000"
+        stdin_open: true # docker run -i
+        tty: true        # docker run -t

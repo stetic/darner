@@ -6,7 +6,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
 
 #include "darner/util/log.h"
@@ -15,6 +15,7 @@
 #include "darner/queue/oqstream.h"
 #include "darner/util/queue_map.hpp"
 #include "darner/net/request.h"
+
 
 namespace darner {
 
@@ -83,7 +84,7 @@ private:
       buf_ = msg;
 
       boost::asio::async_write(
-         socket_, boost::asio::buffer(buf_), boost::bind(&handler::read_request, shared_from_this(), _1, _2));
+         socket_, boost::asio::buffer(buf_), boost::bind(&handler::read_request, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
    }
 
    void error(const char* msg, const char* error_type = "ERROR")
@@ -91,12 +92,19 @@ private:
       buf_ = error_type + std::string(" ") + msg + std::string("\r\n");
 
       boost::asio::async_write(
-         socket_, boost::asio::buffer(buf_), boost::bind(&handler::hang_up, shared_from_this(), _1, _2));
+         socket_, boost::asio::buffer(buf_), boost::bind(&handler::hang_up, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
    }
 
-   void error(const char* location, const boost::system::error_code& e)
+   void error(const char* location, const boost::system::error_code& e, bool echo = true)
    {
       log::ERROR("handler<%1%>::%2%: %3%", shared_from_this(), location, e.message());
+
+      if (echo)
+      {
+         buf_ = "SERVER_ERROR " + e.message() + "\r\n";
+         boost::asio::async_write(
+            socket_, boost::asio::buffer(buf_), boost::bind(&handler::hang_up, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
+      }
    }
 
    void error(const char* location, const boost::system::system_error& ex, bool echo = true)
@@ -107,7 +115,7 @@ private:
       {
          buf_ = "SERVER_ERROR " + ex.code().message() + "\r\n";
          boost::asio::async_write(
-            socket_, boost::asio::buffer(buf_), boost::bind(&handler::hang_up, shared_from_this(), _1, _2));
+            socket_, boost::asio::buffer(buf_), boost::bind(&handler::hang_up, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
       }
    }
 
